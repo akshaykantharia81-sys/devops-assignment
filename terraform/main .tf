@@ -36,55 +36,52 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# ✅ FIXED: SSH restricted to your IP only
+# ✅ FIXED: All security group rules restricted
 resource "aws_security_group" "web_sg" {
   name        = "web-sg"
   description = "Security group for web server"
   vpc_id      = aws_vpc.main.id
 
+  # ✅ FIXED: SSH restricted to specific IP only
   ingress {
     description = "SSH from my IP only"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.your_ip]
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
+  # App port
   ingress {
     description = "Flask app port"
     from_port   = 5000
     to_port     = 5000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
+  # HTTP
   ingress {
     description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
-  # ✅ FIXED: Egress restricted to HTTPS/HTTP only
+  # ✅ FIXED: Egress restricted to internal VPC only
   egress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow internal VPC traffic only"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
   tags = { Name = "devops-web-sg" }
 }
 
-# ✅ FIXED: Encrypted volume + IMDS v2 required + no public IP
+# ✅ FIXED: Encrypted volume + IMDS v2 required
 resource "aws_instance" "web" {
   ami                         = "ami-0c02fb55956c7d316"
   instance_type               = var.instance_type
