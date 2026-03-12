@@ -1,0 +1,96 @@
+pipeline {
+    agent any
+
+    stages {
+
+        // ─────────────────────────────────────────
+        // STAGE 1: Checkout code from GitHub
+        // ─────────────────────────────────────────
+        stage('Checkout') {
+            steps {
+                echo '📥 Pulling source code from GitHub...'
+                checkout scm
+                echo '✅ Code checkout complete.'
+            }
+        }
+
+        // ─────────────────────────────────────────
+        // STAGE 2: Security Scan with Trivy
+        // ─────────────────────────────────────────
+        stage('Infrastructure Security Scan') {
+            steps {
+                script {
+                    echo '🔍 Running Trivy security scan on Terraform files...'
+                    echo '=================================================='
+
+                    // Run Trivy and capture exit code
+                    def scanStatus = sh(
+                        script: '''
+                            trivy config \
+                                --severity HIGH,CRITICAL \
+                                --exit-code 1 \
+                                --format table \
+                                ./terraform/
+                        ''',
+                        returnStatus: true
+                    )
+
+                    echo '=================================================='
+
+                    if (scanStatus != 0) {
+                        echo '❌ CRITICAL SECURITY VULNERABILITIES FOUND!'
+                        echo ''
+                        echo '👉 NEXT STEPS:'
+                        echo '   1. Copy the Trivy report above'
+                        echo '   2. Paste it into Claude AI with this prompt:'
+                        echo '      "Here is my Trivy scan report. Explain each'
+                        echo '       vulnerability and fix the Terraform code."'
+                        echo '   3. Apply the AI fixes to terraform/main.tf'
+                        echo '   4. Re-run this pipeline'
+                        error('Pipeline stopped: Fix security issues before deploying!')
+                    } else {
+                        echo '✅ Security scan PASSED! No critical issues found.'
+                    }
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────
+        // STAGE 3: Terraform Plan
+        // ─────────────────────────────────────────
+        stage('Terraform Plan') {
+            steps {
+                echo '📋 Running Terraform plan...'
+                dir('terraform') {
+                    sh '''
+                        terraform init
+                        terraform plan
+                    '''
+                }
+                echo '✅ Terraform plan complete.'
+            }
+        }
+
+    }
+
+    // ─────────────────────────────────────────
+    // Post actions
+    // ─────────────────────────────────────────
+    post {
+        success {
+            echo ''
+            echo '🎉 ====================================='
+            echo '🎉  PIPELINE PASSED SUCCESSFULLY!'
+            echo '🎉  Infrastructure is secure & ready.'
+            echo '🎉 ====================================='
+        }
+        failure {
+            echo ''
+            echo '💥 ====================================='
+            echo '💥  PIPELINE FAILED!'
+            echo '💥  Check security scan report above.'
+            echo '💥  Use AI to fix vulnerabilities.'
+            echo '💥 ====================================='
+        }
+    }
+}

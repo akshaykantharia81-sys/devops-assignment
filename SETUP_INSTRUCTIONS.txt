@@ -1,0 +1,115 @@
+============================================================
+STEP-BY-STEP SETUP INSTRUCTIONS
+============================================================
+
+STEP 1: INSTALL SOFTWARE
+-------------------------
+1. Docker Desktop  → https://www.docker.com/products/docker-desktop/
+2. Git             → https://git-scm.com/downloads
+3. Terraform       → https://developer.hashicorp.com/terraform/downloads
+4. AWS CLI         → https://aws.amazon.com/cli/
+5. AWS Account     → https://aws.amazon.com/free/
+
+STEP 2: CREATE GITHUB REPO
+---------------------------
+1. Go to github.com → New Repository → Name: devops-assignment
+2. Open terminal in VS Code (Ctrl + `)
+3. Run these commands:
+   cd devops-assignment
+   git init
+   git add .
+   git commit -m "Initial commit with intentional vulnerabilities"
+   git remote add origin https://github.com/YOUR_USERNAME/devops-assignment.git
+   git push -u origin main
+
+STEP 3: TEST APP LOCALLY
+-------------------------
+   cd app
+   docker-compose up --build
+   Open browser → http://localhost:5000
+   You should see "Hello from DevSecOps App!"
+   Press Ctrl+C to stop
+
+STEP 4: START JENKINS
+----------------------
+Run this command (copy-paste exactly):
+
+docker run -d \
+  --name jenkins \
+  -p 8080:8080 \
+  -p 50000:50000 \
+  -v jenkins_home:/var/jenkins_home \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  jenkins/jenkins:lts
+
+Get admin password:
+  docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+
+Open: http://localhost:8080
+Enter password → Install suggested plugins → Create admin user
+
+STEP 5: INSTALL TRIVY IN JENKINS
+----------------------------------
+   docker exec -it --user root jenkins bash
+   curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+   trivy --version
+   exit
+
+STEP 6: CREATE JENKINS PIPELINE
+---------------------------------
+1. Jenkins → New Item → Pipeline → Name: devops-pipeline → OK
+2. Scroll to "Pipeline" section
+3. Definition: Pipeline script from SCM
+4. SCM: Git
+5. Repository URL: https://github.com/YOUR_USERNAME/devops-assignment
+6. Script Path: jenkins/Jenkinsfile
+7. Save → Build Now
+8. ❌ Pipeline will FAIL (that's expected!) → TAKE SCREENSHOT
+
+STEP 7: AI REMEDIATION
+-----------------------
+1. Copy the Trivy output from Jenkins console
+2. Go to claude.ai
+3. Paste this prompt:
+   "Here is my Trivy scan report: [PASTE REPORT]
+    Explain each vulnerability and fix my Terraform code."
+4. Apply the fixes to terraform/main.tf
+5. Change encrypted = false  →  encrypted = true
+6. Change cidr_blocks = ["0.0.0.0/0"] for SSH  →  cidr_blocks = ["YOUR_IP/32"]
+   (Find your IP at: https://whatismyip.com)
+
+STEP 8: PUSH FIX AND RE-RUN
+-----------------------------
+   git add .
+   git commit -m "Fixed security vulnerabilities using AI remediation"
+   git push
+   Jenkins → Build Now
+   ✅ Pipeline should PASS → TAKE SCREENSHOT
+
+STEP 9: AWS SETUP
+------------------
+1. AWS Console → IAM → Create user with AdministratorAccess
+2. Create Access Keys for that user
+3. Run: aws configure
+   Enter: Access Key ID, Secret Key, Region (us-east-1), json
+
+STEP 10: DEPLOY TO AWS
+-----------------------
+   cd terraform
+   terraform init
+   terraform apply -auto-approve
+   Copy the output "app_url" and open it in browser → TAKE SCREENSHOT
+
+STEP 11: RECORD VIDEO (5-10 min)
+----------------------------------
+Use any screen recorder (OBS, Loom, Windows Game Bar Win+G):
+1. Show GitHub repo
+2. Show Jenkins pipeline FAILING
+3. Show AI conversation (fixing vulnerabilities)
+4. Show updated code
+5. Show Jenkins pipeline PASSING
+6. Show app running on AWS public IP
+
+============================================================
+Done! Submit GitHub link + video recording.
+============================================================
